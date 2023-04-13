@@ -48,9 +48,11 @@ seems to be highly correlated with the median income in the Hennepin county.
 Therefore, leaftlets explore locations of gardening related stores, which older people presumably will utilize more, and 
 "luxury" stores, which richer people should utilize more. 
 
-```{r, include = F, fig.height=3, fig.width=4}
+```{r}
+api_key <- Sys.getenv("tidy_c")
+```
 
-api_key <- Sys.getenv("TIDY_C_API_KEY")
+```{r, include = F, fig.height=3, fig.width=4}
 
 mn_income.df <- get_acs(
   geography = "tract",
