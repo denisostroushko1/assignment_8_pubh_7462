@@ -65,13 +65,13 @@ mn_income_plotly.df <- mn_income.df %>%
   mutate(
     tract      = str_split(NAME, ",") %>%
                  map_chr(1) %>%
-                 str_remove("Census Tract"),
-    text_label = str_c(
-                  "Tract: ",
-                  unique(tract),
-                  "\nMedian Age: ",
-                  unique(estimate)
-                 )
+                 str_remove("Census Tract")
+    # ,text_label = str_c(
+    #               "Tract: ",
+    #               unique(tract),
+    #               "\nMedian Age: ",
+    #               unique(estimate)
+    #              )
   )
 
 #Generate the ggplot
