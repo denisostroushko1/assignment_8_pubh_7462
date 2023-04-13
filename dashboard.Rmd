@@ -1,0 +1,177 @@
+---
+title: "Untitled"
+author: "Denis Ostroushko"
+date: "2023-03-23"
+output: html_document
+---
+
+### problem 1 
+
+```{r packages }
+
+#Call viridis library  
+library(viridis, quietly = TRUE)
+library(ggthemes, quietly = TRUE)
+library(htmltools, quietly = TRUE)
+library(tidyverse)
+
+library(ggmap)
+library(tidycensus)
+library(plotly)
+library(leaflet)
+library(osmdata)
+library(tigris)
+library(sf)
+
+```
+
+```{r}
+
+#       available_tags("shop")
+
+
+#Let's grab the liquor stores and hunting stores
+osm_shop_sf.df <- opq(bbox = "hennepin") %>%
+             add_osm_feature(key = "shop", value = c("garden_centre", "groundskeeping", "florist", "outdoor")) %>%
+  osmdata_sf()
+
+#Extract the relevent sf data frame
+shop_points.df <- osm_shop_sf.df$osm_points %>% 
+  janitor::clean_names() %>%
+  filter(!is.na(shop)) %>% #only retain 'valid' tags
+  dplyr::select(osm_id, name, shop, opening_hours, phone, website, geometry) %>%
+  mutate(shop = str_to_title(shop) %>% as_factor())
+
+
+```
+
+```{R}
+
+#Extract the levels/order of shop type factor
+shop_types <- levels(shop_points.df$shop)
+shop_types <- ifelse(shop_types == "Garden_centre", "Garden centre", shop_types)
+n_types    <- length(shop_types)
+
+#Initialize our colour pallete (discrete in this case)
+my_pallete <- colorFactor(viridis_pal(option = "D")(n_types), levels = shop_types)
+
+#Call our leaflet
+leaflet(data = shop_points.df) %>%
+  addProviderTiles('CartoDB.Positron') %>% 
+  addCircleMarkers(
+    color   = ~my_pallete(shop),
+    opacity = 0.4,
+    weight  = 2, #outline strength
+    radius  = 4 #size of circle
+  ) %>%
+  addLegend(
+    title    = "Store Type",
+    position = "bottomright",
+    colors   = viridis_pal(option = "D")(n_types),
+    labels   = shop_types 
+  )
+```
+
+## broblem 2
+
+```{r}
+
+mn_income.df <- get_acs(
+  geography = "tract",
+  variables = "B01002_001", #Code for median age
+  state     = "MN",
+  county    = "Hennepin",
+  year      = 2020,
+  geometry  = TRUE
+)
+
+mn_income_plotly.df <- mn_income.df %>%
+  mutate(
+    tract      = str_split(NAME, ",") %>%
+                 map_chr(1) %>%
+                 str_remove("Census Tract"),
+    text_label = str_c(
+                  "Tract: ",
+                  unique(tract),
+                  "\nMedian Age: ",
+                  unique(estimate)
+                 )
+  )
+
+#Generate the ggplot
+income.gg <- ggplot() + 
+  geom_sf(data = mn_income_plotly.df, 
+          aes(fill = estimate, text = text_label),
+          colour = "black", size = 0.1) + 
+  labs(title = "Hennepin County, MN 2020 ACS Median Age") + 
+  scale_fill_viridis_c("Median Age") +
+  theme_map() +
+  theme(
+    plot.title   = element_text(size  = 16,
+                                hjust = 0.5),
+    legend.text  = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.position = "right"
+  )
+
+
+#Display
+ggplotly(income.gg,
+         tooltip = "text",
+         height  = 600,
+         width   = 800) %>%
+    style(hoveron = "fills")
+```
+
+### broplem 3
+
+```{r}
+
+#Get the bounding box and county outline
+mn.box           <- osmdata::getbb("minnesota")
+hennepin.box     <- osmdata::getbb("hennepin")
+hennepin.outline <- osmdata::getbb("hennepin", format_out = "polygon")[[1]] %>%
+  as_tibble() %>%
+  rename(longitude = V1, latitude = V2)
+
+
+#Get map from ggmap
+#Get the base map (foundational layer)
+mn_base.map <- get_map(
+                location = hennepin.box,
+                source   = "stamen",
+                maptype  = "terrain",
+                crop = TRUE
+               )
+
+
+#Create the base map
+hennepin_base.gg <- ggmap(mn_base.map) +
+  geom_polygon(data = hennepin.outline, aes(x = longitude, y = latitude), colour = "black", size = 1.6, alpha = 0.1) +
+  theme_map() +
+  theme(
+    plot.title   = element_text(size  = 16,
+                                hjust = 0.5),
+    legend.text  = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.position = "right"
+  )
+    
+#Display base map
+hennepin_base.gg + 
+  geom_sf(data = shop_points.df,
+          aes(colour = shop),
+          inherit.aes = FALSE,
+          alpha = 0.8, shape = 16) +
+  labs(title = "Hennepin County, MN OSM Features") + 
+  scale_colour_viridis_d("Store") +
+  theme_map() +
+  theme(
+    plot.title   = element_text(size  = 16,
+                                hjust = 0.5),
+    legend.text  = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.position = "right"
+  )
+
+```

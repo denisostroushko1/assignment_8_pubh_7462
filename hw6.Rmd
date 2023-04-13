@@ -1,0 +1,204 @@
+---
+title: "Assignment 6"
+author: "Denis Ostroushko"
+date: "2023-03-23"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: journal
+    source_code: embed
+---
+
+```{r packages }
+
+#Call viridis library  
+library(viridis, quietly = TRUE)
+library(ggthemes, quietly = TRUE)
+library(htmltools, quietly = TRUE)
+library(tidyverse)
+library(ggmap)
+library(tidycensus)
+library(plotly)
+library(leaflet)
+library(osmdata)
+library(tigris)
+library(sf)
+library(flexdashboard)
+library(shiny)
+library(jsonlite)
+library(purrr)
+
+```
+
+```{r, echo = F}
+knitr::opts_chunk$set( message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
+
+Column {data-height=650 data-width=800}
+-------------------------------------
+
+### Age distribution in Hennepin County. 
+
+Figure below shows the distribution of median ages in Minnesota Hennepin County. We have reviewed the median income 
+distribution, and it appears that the area with highest median income is also the area with the highest median age. 
+
+Using leaflets on the right, we can explore how location of different stores may be related to median age, which 
+seems to be highly correlated with the median income in the Hennepin county. 
+
+Therefore, leaftlets explore locations of gardening related stores, which older people presumably will utilize more, and 
+"luxury" stores, which richer people should utilize more. 
+
+```{r, include = F, fig.height=3, fig.width=4}
+
+api_key <- Sys.getenv("TIDY_C_API_KEY")
+
+mn_income.df <- get_acs(
+  geography = "tract",
+  variables = "B01002_001", #Code for median age
+  state     = "MN",
+  county    = "Hennepin",
+  year      = 2020,
+  geometry  = TRUE
+)
+
+mn_income_plotly.df <- mn_income.df %>%
+  mutate(
+    tract      = str_split(NAME, ",") %>%
+                 map_chr(1) %>%
+                 str_remove("Census Tract"),
+    text_label = str_c(
+                  "Tract: ",
+                  unique(tract),
+                  "\nMedian Age: ",
+                  unique(estimate)
+                 )
+  )
+
+#Generate the ggplot
+income.gg <- ggplot() + 
+  geom_sf(data = mn_income_plotly.df, 
+          aes(fill = estimate, text = text_label),
+          colour = "black", size = 0.1) + 
+  labs(title = "Hennepin County, MN 2020 ACS Median Age") + 
+  scale_fill_viridis_c("Median Age") +
+  theme_map() +
+  theme(
+    plot.title   = element_text(size  = 16,
+                                hjust = 0.5),
+    legend.text  = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.position = "right"
+  )
+
+
+#Display
+res <- ggplotly(income.gg,
+         tooltip = "text",
+         height  = 600,
+         width   = 800) %>%
+    style(hoveron = "fills")
+
+```   
+
+```{r, fig.height=3, fig.width=4}
+res
+```
+
+
+Column {data-height=450}
+-------------------------------------
+   
+### Outdoor and Gardening Stores in Hennepin County
+
+
+```{r}
+
+
+#       available_tags("shop")
+
+
+#Let's grab the liquor stores and hunting stores
+osm_shop_sf.df <- opq(bbox = c("hennepin") ) %>%
+             add_osm_feature(key = "shop", value = c("garden_centre", "groundskeeping", "florist", "outdoor")) %>%
+  osmdata_sf()
+
+#Extract the relevent sf data frame
+shop_points.df <- osm_shop_sf.df$osm_points %>% 
+  janitor::clean_names() %>%
+  filter(!is.na(shop)) %>% #only retain 'valid' tags
+  dplyr::select(osm_id, name, shop, opening_hours, phone, website, geometry) %>%
+  mutate(shop = str_to_title(shop) %>% as_factor())
+
+
+#Extract the levels/order of shop type factor
+shop_types <- levels(shop_points.df$shop)
+shop_types <- ifelse(shop_types == "Garden_centre", "Garden centre", shop_types)
+n_types    <- length(shop_types)
+
+#Initialize our colour pallete (discrete in this case)
+my_pallete <- colorFactor(viridis_pal(option = "D")(n_types), levels = shop_types)
+
+#Call our leaflet
+leaflet(data = shop_points.df) %>%
+  addProviderTiles('CartoDB.Positron') %>% 
+  addCircleMarkers(
+    color   = ~my_pallete(shop),
+    opacity = 0.4,
+    weight  = 2, #outline strength
+    radius  = 4 #size of circle
+  ) %>%
+  addLegend(
+    title    = "Store Type",
+    position = "bottomright",
+    colors   = viridis_pal(option = "D")(n_types),
+    labels   = shop_types 
+  )
+
+```
+    
+### Luxury Stores in Hennepin County
+
+```{r}
+
+
+#       available_tags("shop")
+
+
+#Let's grab the liquor stores and hunting stores
+osm_shop_sf.df <- opq(bbox = "hennepin") %>%
+             add_osm_feature(key = "shop", value = c("wine", "greengrocer", "fashion_accessories", "fashion")) %>%
+  osmdata_sf()
+
+#Extract the relevent sf data frame
+shop_points.df <- osm_shop_sf.df$osm_points %>% 
+  janitor::clean_names() %>%
+  filter(!is.na(shop)) %>% #only retain 'valid' tags
+  dplyr::select(osm_id, name, shop, opening_hours, phone, website, geometry) %>%
+  mutate(shop = str_to_title(shop) %>% as_factor())
+
+
+#Extract the levels/order of shop type factor
+shop_types <- levels(shop_points.df$shop)
+shop_types <- ifelse(shop_types == "Fashion_accessories", "Fashion accessories", shop_types)
+n_types    <- length(shop_types)
+
+#Initialize our colour pallete (discrete in this case)
+my_pallete <- colorFactor(viridis_pal(option = "D")(n_types), levels = shop_types)
+
+#Call our leaflet
+leaflet(data = shop_points.df) %>%
+  addProviderTiles('CartoDB.Positron') %>% 
+  addCircleMarkers(
+    color   = ~my_pallete(shop),
+    opacity = 0.4,
+    weight  = 2, #outline strength
+    radius  = 4 #size of circle
+  ) %>%
+  addLegend(
+    title    = "Store Type",
+    position = "bottomright",
+    colors   = viridis_pal(option = "D")(n_types),
+    labels   = shop_types 
+  )
+
+```
