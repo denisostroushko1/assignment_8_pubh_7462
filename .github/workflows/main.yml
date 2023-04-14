@@ -57,7 +57,7 @@ jobs:
         env:
           tidy_c: ${{ secrets.TIDY_C_API_KEY }}
         run: |
-            Rscript -e "rmarkdown::render('hw6.rmd')"
+            Rscript -e "rmarkdown::render('assignment_8_pubh_7462/hw6.Rmd')"
 
                
     #  - name: Render document
