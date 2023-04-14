@@ -54,12 +54,10 @@ jobs:
                any::gepaf
                
       - name: Render document
-        uses: r-lib/actions/render-rmarkdown@v1
         env:
           tidy_c: ${{ secrets.TIDY_C_API_KEY }}
-        with:
-          to: html
-          path: hw6.rmd
+        run: |
+         Rscript -e 'rmarkdown::render("hw6.Rmd")'
           
       - name: Setup git config
         run: |
