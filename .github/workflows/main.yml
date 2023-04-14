@@ -4,7 +4,7 @@ name: Render Report
 
 jobs:
   build-deploy:
-    runs-on: ubuntu-latest
+    runs-on: macOS-latest
     
     permissions:
         contents: write
@@ -50,13 +50,22 @@ jobs:
                any::purrr
                any::leaflet
                any::gepaf
-      - name: Render document
-        uses: r-lib/actions/render-rmarkdown@v1
+
+      - name: Render dashboard
         env:
           tidy_c: ${{ secrets.TIDY_C_API_KEY }}
-        with:
-          to: html
-          path: hw6.rmd
+        run: |
+            Rscript -e "rmarkdown::render('hw6.rmd')"
+
+               
+    #  - name: Render document
+    #    uses: r-lib/actions/render-rmarkdown@v1
+    #    env:
+    #      tidy_c: ${{ secrets.TIDY_C_API_KEY }}
+    #    with:
+    #      to: html
+    #     path: hw6.rmd
+          
       - name: Setup git config
         run: |
           git config user.name "GitHub Actions Bot"
