@@ -52,21 +52,14 @@ jobs:
                any::purrr
                any::leaflet
                any::gepaf
-
-      - name: Render dashboard
+               
+      - name: Render document
+        uses: r-lib/actions/render-rmarkdown@v1
         env:
           tidy_c: ${{ secrets.TIDY_C_API_KEY }}
-        run: |
-            Rscript -e "rmarkdown::render('assignment_8_pubh_7462/hw6.Rmd')"
-
-               
-    #  - name: Render document
-    #    uses: r-lib/actions/render-rmarkdown@v1
-    #    env:
-    #      tidy_c: ${{ secrets.TIDY_C_API_KEY }}
-    #    with:
-    #      to: html
-    #     path: hw6.rmd
+        with:
+          to: html
+          path: hw6.rmd
           
       - name: Setup git config
         run: |
